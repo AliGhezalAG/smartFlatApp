@@ -11,13 +11,17 @@ public:
     KinventKForceDataHandler();
     ~KinventKForceDataHandler();
     void processData(QString &deviceAddress, QByteArray &receivedData);
+    void setMeasurementMultiplier(const QByteArray &data);
+    void setBaseline(const QByteArray &data);
 
 private:
     double  measurementMultiplier;
     int     baseline1;
     int     baseline2;
-    void    setMeasurementMultiplier(QByteArray &data);
-    void    setBaseline(QByteArray &data);
+
+signals:
+    void processMeasurementMultiplierFinished();
+    void processBaselineFinished();
 };
 
 #endif // KINVENTKFORCEDATAHANDLER_H

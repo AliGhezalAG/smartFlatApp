@@ -1,11 +1,10 @@
 #ifndef DATAHANDLER_H
 #define DATAHANDLER_H
 
-#include <QObject>
+#include "init.h"
+
 #include <iostream>
 #include <fstream>
-
-using namespace std;
 
 class DataHandler : public QObject
 {

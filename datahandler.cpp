@@ -2,7 +2,7 @@
 
 DataHandler::DataHandler(){}
 DataHandler::~DataHandler(){}
-void DataHandler::processData(QString &deviceAddress, QByteArray &receivedData){}
+void DataHandler::processData(QString&, QByteArray&){}
 
 int DataHandler::byteArrayToInt(const QByteArray &bytes){
     QByteArray bytesToHex = bytes.toHex(0);

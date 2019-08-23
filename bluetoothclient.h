@@ -1,12 +1,10 @@
 #ifndef BLUETOOTHCLIENT_H
 #define BLUETOOTHCLIENT_H
 
-#include <QObject>
-#include <QDebug>
-#include <iostream>
-#include <fstream>
+#include "init.h"
 
-using namespace std;
+#include <QDebug>
+#include "datahandler.h"
 
 class BluetoothClient : public QObject
 {
@@ -30,8 +28,6 @@ protected:
     QString     deviceAddress;
     ofstream    logFile;
     QByteArray  receivedData;
-    int byteArrayToInt(const QByteArray &bytes);
-    double byteArrayToDouble(const QByteArray &bytes);
 };
 
 #endif // BLUETOOTHCLIENT_H

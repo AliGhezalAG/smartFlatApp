@@ -22,7 +22,8 @@ SOURCES += \
         connexionhandler.cpp \
         datahandler.cpp \
         kinventkforcedatahandler.cpp \
-        main.cpp
+        main.cpp \
+        uttboarddatahandler.cpp
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
@@ -35,4 +36,6 @@ HEADERS += \
     classicbluetoothclient.h \
     connexionhandler.h \
     datahandler.h \
-    kinventkforcedatahandler.h
+    init.h \
+    kinventkforcedatahandler.h \
+    uttboarddatahandler.h

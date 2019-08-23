@@ -3,12 +3,19 @@
 KinventKForceDataHandler::KinventKForceDataHandler(){}
 KinventKForceDataHandler::~KinventKForceDataHandler(){}
 
-void KinventKForceDataHandler::setMeasurementMultiplier(QByteArray &data)
+void KinventKForceDataHandler::setMeasurementMultiplier(const QByteArray &data)
 {
     QByteArray val = QByteArray::fromHex(data.toHex(':'));
-    measurementMultiplier = val.toInt()/2000000.0;
+    measurementMultiplier = val.toInt()/ MEASUREMENT_MULTIPLIER_DENOMINATOR;
+    emit processMeasurementMultiplierFinished();
 }
 
+void KinventKForceDataHandler::setBaseline(const QByteArray &data)
+{
+    baseline1 = byteArrayToInt(data.mid(0,2));
+    baseline2 = byteArrayToInt(data.mid(2,2));
+    emit processBaselineFinished();
+}
 void KinventKForceDataHandler::processData(QString &deviceAddress, QByteArray &receivedData)
 {
     int count = 0;
@@ -65,4 +72,5 @@ void KinventKForceDataHandler::processData(QString &deviceAddress, QByteArray &r
     }
 
     logFile.close();
+    emit processingFinished();
 }

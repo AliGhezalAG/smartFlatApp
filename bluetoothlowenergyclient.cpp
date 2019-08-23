@@ -1,33 +1,33 @@
 #include "bluetoothlowenergyclient.h"
-#include <QDebug>
-#include <QtEndian>
 
 BluetoothLowEnergyClient::BluetoothLowEnergyClient(QString address) : BluetoothClient(address), m_service(nullptr),
     measurementMultiplierSet(false), baselineSet(false), timeClockSet(false)
 {
     qDebug() << Q_FUNC_INFO;
     m_controller =  new QLowEnergyController(QBluetoothAddress(address), this);
+    dataHandler = new KinventKForceDataHandler();
 }
 
 BluetoothLowEnergyClient::~BluetoothLowEnergyClient()
 {
+    qDebug() << Q_FUNC_INFO;
+
     if (m_controller)
         m_controller->disconnectFromDevice();
     delete m_controller;
-    qDebug() << Q_FUNC_INFO;
+    delete dataHandler;
 }
 
 void BluetoothLowEnergyClient::start()
 {
-    // Slot pour la récupération des services
     connect(m_controller, SIGNAL(serviceDiscovered(QBluetoothUuid)), this, SLOT(ajouterService(QBluetoothUuid)));
     connect(m_controller, SIGNAL(connected()), this, SLOT(deviceDiscoverServices()));
     connect(m_controller, SIGNAL(disconnected()), this, SLOT(deviceDisconnected()));
 
     connect(this, SIGNAL(deviceConnected()), this, SLOT(getMeasurementMultiplier()));
-    connect(this, SIGNAL(processMeasurementMultiplierFinished()), this, SLOT(getBaseline()));
-    connect(this, SIGNAL(processBaselineFinished()), this, SLOT(getData()));
-    connect(this, SIGNAL(processingFinished()), this, SLOT(stop()));
+    connect(dataHandler, SIGNAL(processMeasurementMultiplierFinished()), this, SLOT(getBaseline()));
+    connect(dataHandler, SIGNAL(processBaselineFinished()), this, SLOT(getData()));
+    connect(dataHandler, SIGNAL(processingFinished()), this, SLOT(stop()));
 
     qDebug() << Q_FUNC_INFO << "demande de connexion";
     m_controller->setRemoteAddressType(QLowEnergyController::PublicAddress);
@@ -49,7 +49,7 @@ void BluetoothLowEnergyClient::read()
         {
             m_service->readCharacteristic(m_txCharacteristic);
             //            qDebug() << Q_FUNC_INFO << m_txCharacteristic.value() << m_compteur;
-            //qDebug() << (int)qFromLittleEndian<quint8>(m_txCharacteristic.value().constData());
+            //            qDebug() << (int)qFromLittleEndian<quint8>(m_txCharacteristic.value().constData());
             emit compteurChange();
         }
     }
@@ -61,11 +61,8 @@ void BluetoothLowEnergyClient::write(const QByteArray &data)
     {
         if (m_rxCharacteristic.properties() & QLowEnergyCharacteristic::Write)
         {
-            //            qDebug() << Q_FUNC_INFO << data;
-            if(data.length() <= MAX_SIZE)
-                m_service->writeCharacteristic(m_rxCharacteristic, data, QLowEnergyService::WriteWithResponse);
-            else
-                m_service->writeCharacteristic(m_rxCharacteristic, data.mid(0, MAX_SIZE), QLowEnergyService::WriteWithResponse); // TODO : et les autres octets ?
+            m_service->writeCharacteristic(m_rxCharacteristic, data, QLowEnergyService::WriteWithResponse);
+            // TODO: deal with the case where data length > MAX_SIZE
         }
     }
 }
@@ -119,26 +116,26 @@ void BluetoothLowEnergyClient::setTimeClock()
     ba.setNum(ltm->tm_wday, 16);
     timeClock.append(ba);
 
-    QByteArray getDeviceTypeRequest = QByteArray::fromHex("71");
-    write(getDeviceTypeRequest);
+    QByteArray command = QByteArray::fromHex(SET_TIME_CLOCK_COMMAND);
+    write(command);
 }
 
 void BluetoothLowEnergyClient::getMeasurementMultiplier()
 {
-    QByteArray getDeviceTypeRequest = QByteArray::fromHex("21");
-    write(getDeviceTypeRequest);
+    QByteArray command = QByteArray::fromHex(GET_MEASURE_MULYIPLIER_COMMAND);
+    write(command);
 }
 
 void BluetoothLowEnergyClient::getBaseline()
 {
-    QByteArray getDeviceTypeRequest = QByteArray::fromHex("43");
-    write(getDeviceTypeRequest);
+    QByteArray command = QByteArray::fromHex(GET_BASELINE_COMMAND);
+    write(command);
 }
 
 void BluetoothLowEnergyClient::getData()
 {
-    QByteArray getDeviceTypeRequest = QByteArray::fromHex("67");
-    write(getDeviceTypeRequest);
+    QByteArray command = QByteArray::fromHex(GET_MEMORY_DUMP_COMMAND);
+    write(command);
 }
 
 void BluetoothLowEnergyClient::connecterService(QLowEnergyService *service)
@@ -147,19 +144,18 @@ void BluetoothLowEnergyClient::connecterService(QLowEnergyService *service)
 
     if (m_service->state() == QLowEnergyService::DiscoveryRequired)
     {
-        // Slot pour le changement d'une caractéristique
+        // Slot to change a characteristic
         connect(m_service, SIGNAL(characteristicChanged(QLowEnergyCharacteristic,QByteArray)), this, SLOT(serviceCharacteristicChanged(QLowEnergyCharacteristic,QByteArray)));
-        // Slot pour la récupération des caractéristiques
+        // Slot to get a characteristic
         connect(m_service, SIGNAL(stateChanged(QLowEnergyService::ServiceState)), this, SLOT(serviceDetailsDiscovered(QLowEnergyService::ServiceState)));
 
-        //        qDebug() << Q_FUNC_INFO << "découverte des détails des services";
+        qDebug() << Q_FUNC_INFO << "Discovering service details";
         m_service->discoverDetails();
     }
 }
 
 void BluetoothLowEnergyClient::ajouterService(QBluetoothUuid serviceUuid)
 {
-    //    qDebug() << Q_FUNC_INFO << serviceUuid.toString();
     QLowEnergyService *service = m_controller->createServiceObject(serviceUuid);
     connecterService(service);
 }
@@ -169,84 +165,21 @@ void BluetoothLowEnergyClient::serviceCharacteristicChanged(const QLowEnergyChar
     if (c.uuid().toString() == CHARACTERISTIC_UUID)
     {
         if(!measurementMultiplierSet){
-            QByteArray val = QByteArray::fromHex(value.toHex(':'));
-            measurementMultiplier = val.toInt()/2000000.0;
+            dataHandler->setMeasurementMultiplier(value);
             measurementMultiplierSet = true;
-            emit processMeasurementMultiplierFinished();
 
         } else if (!baselineSet){
-            baseline1 = byteArrayToInt(value.mid(0,2));
-            baseline2 = byteArrayToInt(value.mid(2,2));
+            dataHandler->setBaseline(value);
             baselineSet = true;
-            emit processBaselineFinished();
 
         } else {
             //            qInfo() << "received: " << value.toHex(':') << "global data size : " << receivedData.size();
             receivedData.append(value);
             if (receivedData.size() >= 128000){
-                processReceivedData();
-                emit processingFinished();
+                dataHandler->processData(this->deviceAddress, receivedData);
             }
         }
     }
-}
-
-void BluetoothLowEnergyClient::processReceivedData()
-{
-    int count = 0;
-    std::time_t timeDate = std::time(nullptr);
-    string timeDateStr = std::ctime(&timeDate);
-    timeDateStr.erase(std::remove(timeDateStr.begin(), timeDateStr.end(), '\n'), timeDateStr.end());
-
-    logFile.open ("results.csv", ios::out | ios::app);
-
-    logFile << "Time/date, Device address, Measurement multiplier, Baseline 1, Baseline 2, Timestamp, Nb of measures, Base measure 1, Base measure 2, Measure 1, Measure 2" << endl;
-
-    while(count < receivedData.size()){
-
-        int entryDataNb = byteArrayToInt(receivedData.mid(count,3));
-
-        if (entryDataNb == 0)
-            break;
-
-        int entryTimeStamp = byteArrayToInt(receivedData.mid(count+3,4));
-
-        logFile << timeDateStr << ","
-                << this->deviceAddress.toStdString() << ","
-                << measurementMultiplier << ","
-                << baseline1 << ","
-                << baseline2 << ","
-                << entryTimeStamp << ","
-                << (entryDataNb/4) << ","
-                <<  ","
-                 <<  ","
-                  <<  ","
-                   << endl;
-
-        for (int j = count + 7; j < count + static_cast<int>(entryDataNb) ; j+=4) {
-            int baseMes1 = byteArrayToInt(receivedData.mid(j,2));
-            int baseMes2 = byteArrayToInt(receivedData.mid(j+2,2));
-            double mes1 = (baseline1 - baseMes1) * measurementMultiplier;
-            double mes2 = (baseline2 - baseMes2) * measurementMultiplier;
-
-            logFile << ","
-                    << ","
-                    << ","
-                    << ","
-                    << ","
-                    << ","
-                    << ","
-                    << baseMes1 << ","
-                    << baseMes2 << ","
-                    << mes1 << ","
-                    << mes2
-                    << endl;
-        }
-
-        count += entryDataNb+7;
-    }
-
-    logFile.close();
 }
 
 void BluetoothLowEnergyClient::serviceDetailsDiscovered(QLowEnergyService::ServiceState newState)
@@ -269,7 +202,7 @@ void BluetoothLowEnergyClient::serviceDetailsDiscovered(QLowEnergyService::Servi
             //            qDebug() << Q_FUNC_INFO << "characteristic" << c.uuid().toString();
             if (c.uuid().toString() == CHARACTERISTIC_UUID)
             {
-                //                qDebug() << Q_FUNC_INFO << "my characteristic TX" << c.uuid().toString() << (c.properties() & QLowEnergyCharacteristic::Notify);
+//                qDebug() << Q_FUNC_INFO << "my characteristic TX" << c.uuid().toString() << (c.properties() & QLowEnergyCharacteristic::Notify);
                 m_txCharacteristic = c;
 
                 QLowEnergyDescriptor descripteurNotification = c.descriptor(QBluetoothUuid::ClientCharacteristicConfiguration);

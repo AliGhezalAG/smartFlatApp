@@ -2,17 +2,8 @@
 #define BLUETOOTHLOWENERGYCLIENT_H
 
 #include "bluetoothclient.h"
+#include "kinventkforcedatahandler.h"
 #include <QLowEnergyController>
-
-#include <iostream>
-#include <fstream>
-
-using namespace std;
-
-#define SERVICE_UUID                "{49535343-fe7d-4ae5-8fa9-9fafd205e455}"
-#define CHARACTERISTIC_UUID         "{49535343-1e4d-4bd9-ba61-23c647249616}"
-
-#define MAX_SIZE 20 // 20 octets de données max
 
 class BluetoothLowEnergyClient : public BluetoothClient
 {
@@ -29,7 +20,6 @@ public:
 
 protected slots:
     void stop();
-    void processReceivedData();
     void deviceDisconnected();
     void connecterService(QLowEnergyService *service);
     void ajouterService(QBluetoothUuid serviceUuid);
@@ -46,12 +36,10 @@ private:
     QLowEnergyService              *m_service;
     QLowEnergyCharacteristic        m_txCharacteristic;
     QLowEnergyCharacteristic        m_rxCharacteristic;
-    double                          measurementMultiplier;
-    int                             baseline1;
-    int                             baseline2;
     bool                            measurementMultiplierSet;
     bool                            baselineSet;
     bool                            timeClockSet;
+    KinventKForceDataHandler        *dataHandler;
 
 signals:
     void compteurChange();

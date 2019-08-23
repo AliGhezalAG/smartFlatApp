@@ -1,14 +1,12 @@
 #ifndef CONNEXIONHANDLER_H
 #define CONNEXIONHANDLER_H
 
-#include <QObject>
-#include <QDebug>
+#include "init.h"
+
 #include <QBluetoothDeviceDiscoveryAgent>
 #include "bluetoothlowenergyclient.h"
 #include "classicbluetoothclient.h"
 #include <QEventLoop>
-#include <chrono>
-#include <ctime>
 #include <QHash>
 
 class ConnexionHandler : public QObject

@@ -3,8 +3,6 @@
 ConnexionHandler::ConnexionHandler()
 {
     discoveredDevicesList = {};
-    bluetoothLowEnergyClientList = {};
-    classicBluetoothClientList = {};
 
     deviceDiscoveryAgent = new QBluetoothDeviceDiscoveryAgent();
     deviceDiscoveryAgent->setLowEnergyDiscoveryTimeout(5000);
@@ -12,17 +10,13 @@ ConnexionHandler::ConnexionHandler()
     connect(deviceDiscoveryAgent, &QBluetoothDeviceDiscoveryAgent::deviceDiscovered, this, &ConnexionHandler::addDevice);
     connect(deviceDiscoveryAgent, &QBluetoothDeviceDiscoveryAgent::finished, this, &ConnexionHandler::processDevices);
     connect(deviceDiscoveryAgent, QOverload<QBluetoothDeviceDiscoveryAgent::Error>::of(&QBluetoothDeviceDiscoveryAgent::error),
-            [=](QBluetoothDeviceDiscoveryAgent::Error error){this->deviceScanError(error); });
+            [=](QBluetoothDeviceDiscoveryAgent::Error error){ this->deviceScanError(error); });
 }
 
 ConnexionHandler::~ConnexionHandler()
 {
     delete deviceDiscoveryAgent;
     discoveredDevicesList.clear();
-    qDeleteAll(bluetoothLowEnergyClientList);
-    qDeleteAll(classicBluetoothClientList);
-    bluetoothLowEnergyClientList.clear();
-    classicBluetoothClientList.clear();
 }
 
 void ConnexionHandler::deviceScanError(QBluetoothDeviceDiscoveryAgent::Error error)
@@ -40,8 +34,7 @@ void ConnexionHandler::addDevice(const QBluetoothDeviceInfo &device)
     QString deviceAddress = device.address().toString();
     if(bluetoothLowEnergyDevicesList.contains(deviceAddress) || classicBluetoothDevicesList.contains(deviceAddress)){
         discoveredDevicesList.append(deviceAddress);
-        qInfo() << device.address().toString();
-        qInfo() << device.name();
+        qInfo() << device.address().toString() << " : " << device.name();
     }
 }
 
@@ -49,14 +42,12 @@ void ConnexionHandler::start()
 {
     while(true){
         discoveredDevicesList.clear();
-        qDeleteAll(bluetoothLowEnergyClientList);
-        bluetoothLowEnergyClientList.clear();
         deviceDiscoveryAgent->start(QBluetoothDeviceDiscoveryAgent::LowEnergyMethod);
         {
             QEventLoop loop;
             qInfo() << "start of loop";
             loop.connect(this, SIGNAL(scanProcessingEnded()), SLOT(quit()));
-            deviceDiscoveryAgent->start(QBluetoothDeviceDiscoveryAgent::LowEnergyMethod);
+            deviceDiscoveryAgent->start();
             loop.exec();
         }
         qInfo() << "end of loop";
